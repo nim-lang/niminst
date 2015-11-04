@@ -60,7 +60,7 @@ type
     name, displayName, version, description, license, infile, outdir: string
     mainfile, libpath: string
     innoSetupFlag, installScript, uninstallScript: bool
-    explicitPlatforms: bool
+    explicitPlatforms, cSources: bool
     vars: StringTableRef
     app: AppType
     nimArgs: string
@@ -96,6 +96,8 @@ proc iniConfigData(c: var ConfigData) =
   c.innoSetupFlag = false
   c.installScript = false
   c.uninstallScript = false
+  c.cSources = true
+
   c.vars = newStringTable(modeStyleInsensitive)
 
   c.debOpts.buildDepends = ""
@@ -302,6 +304,7 @@ proc parseIniFile(c: var ConfigData) =
             of "gui": c.app = appGUI
             else: quit(errorStr(p, "expected: console or gui"))
           of "license": c.license = unixToNativePath(k.value)
+          of "csources": c.cSources = yesno(p, v)
           else: quit(errorStr(p, "unknown variable: " & k.key))
         of "var": discard
         of "winbin": filesOnly(p, k.key, v, c.cat[fcWinBin])
@@ -573,19 +576,20 @@ proc xzDist(c: var ConfigData) =
     if not dirExists(destdir): createDir(destdir)
     copyFileWithPermissions(s, tmpDir / d)
 
-  processFile(z, proj / buildBatFile32, "build" / buildBatFile32)
-  processFile(z, proj / buildBatFile64, "build" / buildBatFile64)
-  processFile(z, proj / buildShFile, "build" / buildShFile)
-  processFile(z, proj / makeFile, "build" / makeFile)
-  processFile(z, proj / installShFile, installShFile)
-  processFile(z, proj / deinstallShFile, deinstallShFile)
-  for f in walkFiles(c.libpath / "lib/*.h"):
-    processFile(z, proj / "c_code" / extractFilename(f), f)
-  for osA in 1..c.oses.len:
-    for cpuA in 1..c.cpus.len:
-      var dir = buildDir(osA, cpuA)
-      for k, f in walkDir("build" / dir):
-        if k == pcFile: processFile(z, proj / dir / extractFilename(f), f)
+  if c.cSources:
+    processFile(z, proj / buildBatFile32, "build" / buildBatFile32)
+    processFile(z, proj / buildBatFile64, "build" / buildBatFile64)
+    processFile(z, proj / buildShFile, "build" / buildShFile)
+    processFile(z, proj / makeFile, "build" / makeFile)
+    processFile(z, proj / installShFile, installShFile)
+    processFile(z, proj / deinstallShFile, deinstallShFile)
+    for f in walkFiles(c.libpath / "lib/*.h"):
+      processFile(z, proj / "c_code" / extractFilename(f), f)
+    for osA in 1..c.oses.len:
+      for cpuA in 1..c.cpus.len:
+        var dir = buildDir(osA, cpuA)
+        for k, f in walkDir("build" / dir):
+          if k == pcFile: processFile(z, proj / dir / extractFilename(f), f)
 
   for cat in items({fcConfig..fcOther, fcUnix}):
     for f in items(c.cat[cat]): processFile(z, proj / f, f)
@@ -621,17 +625,18 @@ proc debDist(c: var ConfigData) =
     copyFile(currentSource / f, workingDir / upstreamSource / dest)
 
   # Don't copy all files, only the ones specified in the config:
-  copyNimDist(buildShFile, buildShFile)
-  copyNimDist(makeFile, makeFile)
-  copyNimDist(installShFile, installShFile)
-  createDir(workingDir / upstreamSource / "build")
-  for f in walkFiles(c.libpath / "lib/*.h"):
-    copyNimDist(f, "build" / extractFilename(f))
-  for osA in 1..c.oses.len:
-    for cpuA in 1..c.cpus.len:
-      var dir = buildDir(osA, cpuA)
-      for k, f in walkDir(dir):
-        if k == pcFile: copyNimDist(f, dir / extractFilename(f))
+  if c.cSources:
+    copyNimDist(buildShFile, buildShFile)
+    copyNimDist(makeFile, makeFile)
+    copyNimDist(installShFile, installShFile)
+    createDir(workingDir / upstreamSource / "build")
+    for f in walkFiles(c.libpath / "lib/*.h"):
+      copyNimDist(f, "build" / extractFilename(f))
+    for osA in 1..c.oses.len:
+      for cpuA in 1..c.cpus.len:
+        var dir = buildDir(osA, cpuA)
+        for k, f in walkDir(dir):
+          if k == pcFile: copyNimDist(f, dir / extractFilename(f))
   for cat in items({fcConfig..fcOther, fcUnix}):
     for f in items(c.cat[cat]): copyNimDist(f, f)
 

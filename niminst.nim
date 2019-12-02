@@ -430,7 +430,7 @@ proc writeFile(filename, content, newline: string) =
 proc removeDuplicateFiles(c: var ConfigData) =
   for osA in countdown(c.oses.len, 1):
     for cpuA in countdown(c.cpus.len, 1):
-      if c.cfiles[osA][cpuA].isNil: c.cfiles[osA][cpuA] = @[]
+      # if c.cfiles[osA][cpuA].isNil(): c.cfiles[osA][cpuA] = @[]
       if c.explicitPlatforms and not c.platforms[osA][cpuA]: continue
       for i in 0..c.cfiles[osA][cpuA].len-1:
         var dup = c.cfiles[osA][cpuA][i]
@@ -620,7 +620,7 @@ proc debDist(c: var ConfigData) =
 
   createDir(workingDir / upstreamSource)
 
-  template copyNimDist(f, dest: string): stmt =
+  template copyNimDist(f, dest: string): typed =
     createDir((workingDir / upstreamSource / dest).splitFile.dir)
     copyFile(currentSource / f, workingDir / upstreamSource / dest)
 

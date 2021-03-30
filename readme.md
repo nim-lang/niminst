@@ -11,7 +11,7 @@ To build it::
 
 To build the documentation::
 
-  nim rst2html niminst.txt
+  nim rst2html niminst.rst
 
 Niminst is licensed under the MIT license.
 
